@@ -7,59 +7,48 @@
 #include <bitset>
 #include <chrono>
 
-struct Node
-{
-	char ch;
-	int freq;
-	Node *left, *right;
+struct HuffmanNode {
+    char symbol;
+    int frequency;
+    HuffmanNode *left, *right;
 };
 
-Node* getNode(char ch, int freq, Node* left, Node* right)
-{
-	Node* node = new Node();
-
-	node->ch = ch;
-	node->freq = freq;
-	node->left = left;
-	node->right = right;
-
-	return node;
+HuffmanNode* createHuffmanNode(char symbol, int frequency, HuffmanNode* left, HuffmanNode* right) {
+    HuffmanNode* node = new HuffmanNode();
+    node->symbol = symbol;
+    node->frequency = frequency;
+    node->left = left;
+    node->right = right;
+    return node;
 }
 
-struct comp
-{
-	bool operator()(Node* l, Node* r)
-	{
-		return l->freq > r->freq;
-	}
+struct NodeComparison {
+    bool operator()(HuffmanNode* l, HuffmanNode* r) {
+        return l->frequency > r->frequency;
+    }
 };
 
-void encode(Node* root, std::string str, std::unordered_map<char, std::string> &huffmanCode)
-{
-	if (root == nullptr)
-		return;
-
-	if (!root->left && !root->right) {
-		huffmanCode[root->ch] = str;
-	}
-
-	encode(root->left, str + "0", huffmanCode);
-	encode(root->right, str + "1", huffmanCode);
+void generateHuffmanCode(HuffmanNode* root, std::string str, std::unordered_map<char, std::string> &huffmanCode) {
+    if (root == nullptr) return;
+    if (!root->left && !root->right) huffmanCode[root->symbol] = str;
+    generateHuffmanCode(root->left, str + "0", huffmanCode);
+    generateHuffmanCode(root->right, str + "1", huffmanCode);
 }
 
-void serializeTree(Node* root, std::ofstream& out, char escapeChar = '\\') {
+
+void serializeTree(HuffmanNode* root, std::ofstream& out, char escapeChar = '\\') {
     if (root == nullptr) {
         return;
     }
 
-    if (root->ch == '\0') {
+    if (root->symbol == '\0') {
         out << escapeChar << "#";
-    } else if (root->ch == '\n') {
+    } else if (root->symbol == '\n') {
         out << escapeChar << "n";
-    } else if (root->ch == escapeChar || root->ch == ',') {
-        out << escapeChar << root->ch;
+    } else if (root->symbol == escapeChar || root->symbol == ',') {
+        out << escapeChar << root->symbol;
     } else {
-        out << root->ch;
+        out << root->symbol;
     }
 
     out << "," << (root->left != nullptr) << "\n";
@@ -67,7 +56,7 @@ void serializeTree(Node* root, std::ofstream& out, char escapeChar = '\\') {
     serializeTree(root->right, out, escapeChar);
 }
 
-Node* reconstructTree(std::ifstream& in, char escapeChar = '\\') {
+HuffmanNode* reconstructTree(std::ifstream& in, char escapeChar = '\\') {
     std::string line;
     if (!getline(in, line)) {
         return nullptr;
@@ -101,7 +90,7 @@ Node* reconstructTree(std::ifstream& in, char escapeChar = '\\') {
 
     hasChildren = (line[pos] == '1');
 
-    Node* node = getNode(ch, 0, nullptr, nullptr);
+    HuffmanNode* node = createHuffmanNode(ch, 0, nullptr, nullptr);
     if (hasChildren) {
         node->left = reconstructTree(in);
         node->right = reconstructTree(in);
@@ -109,7 +98,7 @@ Node* reconstructTree(std::ifstream& in, char escapeChar = '\\') {
     return node;
 }
 
-Node* buildTreeFromSerialization(const std::string& filename) {
+HuffmanNode* buildTreeFromSerialization(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open()) {
         std::cerr << "Could not open the file: " << filename << std::endl;
@@ -167,24 +156,24 @@ void buildHuffmanTree(std::string text) {
         freq[ch]++;
     }
 
-    std::priority_queue<Node*, std::vector<Node*>, comp> pq;
+    std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, NodeComparison> pq;
 
     for (auto pair: freq) {
-        pq.push(getNode(pair.first, pair.second, nullptr, nullptr));
+        pq.push(createHuffmanNode(pair.first, pair.second, nullptr, nullptr));
     }
 
     while (pq.size() != 1) {
-        Node *left = pq.top(); pq.pop();
-        Node *right = pq.top(); pq.pop();
+        HuffmanNode *left = pq.top(); pq.pop();
+        HuffmanNode *right = pq.top(); pq.pop();
 
-        int sum = left->freq + right->freq;
-        pq.push(getNode('\0', sum, left, right));
+        int sum = left->frequency + right->frequency;
+        pq.push(createHuffmanNode('\0', sum, left, right));
     }
 
-    Node* root = pq.top();
+    HuffmanNode* root = pq.top();
 
     std::unordered_map<char, std::string> huffmanCode;
-    encode(root, "", huffmanCode);
+    generateHuffmanCode(root, "", huffmanCode);
 
     std::string str = "";
     for (char ch: text) {
@@ -199,7 +188,7 @@ void buildHuffmanTree(std::string text) {
 }
 
 
-void decodeFromFile(Node* root, const std::string& encodedFile, const std::string& decodedFile) {
+void decodeFromFile(HuffmanNode* root, const std::string& encodedFile, const std::string& decodedFile) {
     std::ifstream input(encodedFile, std::ios::binary);
     std::ofstream output(decodedFile);
 
@@ -211,7 +200,7 @@ void decodeFromFile(Node* root, const std::string& encodedFile, const std::strin
     unsigned int length;
     input.read(reinterpret_cast<char*>(&length), sizeof(length));
 
-    Node* current = root;
+    HuffmanNode* current = root;
     char byte;
     int bitCount = 0;
 
@@ -224,7 +213,7 @@ void decodeFromFile(Node* root, const std::string& encodedFile, const std::strin
             }
 
             if (!current->left && !current->right) {
-                output << current->ch;
+                output << current->symbol;
                 current = root;
             }
         }
@@ -252,7 +241,7 @@ int main()
     std::cout << "Time taken by buildHuffmanTree: " << duration.count() << " milliseconds" << std::endl;
 
     start = std::chrono::high_resolution_clock::now();
-    Node* root = buildTreeFromSerialization("huffman_tree.txt");
+    HuffmanNode* root = buildTreeFromSerialization("huffman_tree.txt");
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     std::cout << "Time taken by buildTreeFromSerialization: " << duration.count() << " milliseconds" << std::endl;
